@@ -1,4 +1,4 @@
-# PHP-unused-CSS-tracker
+# PHP unused CSS/SCSS tracker
 
 A small php script, to figure out for unused CSS.
 
