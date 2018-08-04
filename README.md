@@ -4,7 +4,7 @@ A small php script, to figure out for unused CSS/SCSS.
 
 ## Usage
 
-Call the **unusedCSS::find_all_IDs_CLASSes_TAGs(( HTML_content <= string ), ( SCSS_content <= string ), ( JS_Content <= string ));** function to get all ids, classes and tags. This function requires strings of each whole content, this means you have to merge the content before, like in the example below. Afterwards call the **`unusedCSS::find_unused_CSS(( all_IDs_CLASSes_TAGs <= array ), ( HTML_file <= file path ), ( SCSS_file <= file path ), ( JS_file <= file path ), ( project_directory <= root directory ));`** function for each file, to compare them. The result is a multiple array with objects of all unused CSS/SCSS.
+Call the **`unusedCSS::find_all_IDs_CLASSes_TAGs(( HTML_content <= string ), ( SCSS_content <= string ), ( JS_Content <= string ));`** function to get all ids, classes and tags. This function requires strings of each whole content, this means you have to merge the content before, like in the example below. Afterwards call the **`unusedCSS::find_unused_CSS(( all_IDs_CLASSes_TAGs <= array ), ( HTML_file <= file path ), ( SCSS_file <= file path ), ( JS_file <= file path ), ( project_directory <= root directory ));`** function for each file, to compare them. The result is a multiple array with objects of all unused CSS/SCSS.
 
 ## Note!
 
