@@ -179,6 +179,11 @@
             $JS_ids_flatten_array = unusedCSS::flatten_array( $JS_ids );
             $JS_class_flatten_array = unusedCSS::flatten_array( $JS_classes );
 
+            $HTML_content = file_get_contents( $HTML_file );
+            $current_HTML_IDs_CLASSes_TAGs = unusedCSS::find_all_IDs_CLASSes_TAGs($HTML_content, null, null);
+            $current_HTML_ids = $current_HTML_IDs_CLASSes_TAGs[0];
+            $current_HTML_classes = $current_HTML_IDs_CLASSes_TAGs[1];
+
             $SCSS_content = file_get_contents( $SCSS_file );
             $current_SCSS_IDs_CLASSes_TAGs = unusedCSS::find_all_IDs_CLASSes_TAGs(null, $SCSS_content, null);
             $current_SCSS_ids = $current_SCSS_IDs_CLASSes_TAGs[0];
@@ -253,7 +258,8 @@
                 foreach ( $HTML_ids as $HTML_id_search_value )
                 {
                     if ( !in_array( $HTML_id_search_value, $SCSS_ids ) &&
-                         !in_array( $HTML_id_search_value, $JS_ids_flatten_array ))
+                         !in_array( $HTML_id_search_value, $JS_ids_flatten_array ) &&
+                          in_array( $HTML_id_search_value, $current_HTML_ids ) )
                     {
                         array_push( $unused_CSS, $unused = (object) [
                             "identifier" => 'id="' . $HTML_id_search_value . '"',
@@ -270,7 +276,8 @@
                 foreach ( $HTML_classes as $HTML_class_search_value )
                 {
                     if ( !in_array( $HTML_class_search_value, $SCSS_classes ) &&
-                         !in_array( $HTML_class_search_value, $JS_class_flatten_array ) )
+                         !in_array( $HTML_class_search_value, $JS_class_flatten_array ) &&
+                          in_array( $HTML_class_search_value, $current_HTML_classes ) )
                     {
                         array_push( $unused_CSS, $unused = (object) [
                             "identifier" => 'class="' . $HTML_class_search_value . '"',
