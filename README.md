@@ -15,7 +15,7 @@ Matched only `getElementById`, `$(#id)`, `getElementsByClassName`, `addClass`, `
 
     require 'unusedCSS.php';
 
-    // glob all is normally just a star withou the backslash//
+    // glob all is normally just a star without the backslash//
     $all_HTML_files = glob( 'test/html/\*.php' );
     $all_SCSS_files = glob( 'test/scss/\*.scss' );
     $all_JS_files = glob( 'test/js/\*.js' );
@@ -51,7 +51,7 @@ Matched only `getElementById`, `$(#id)`, `getElementsByClassName`, `addClass`, `
         }
     }
 
-    //workaround to unique the result the array//
+    //workaround to unique the result array//
     $all_unused_CSS = unusedCSS::flatten_array($all_unused_CSS);
     $all_unused_CSS = array_map('json_encode', $all_unused_CSS);
     $all_unused_CSS = array_values(array_unique($all_unused_CSS));
