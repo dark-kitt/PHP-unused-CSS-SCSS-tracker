@@ -1,391 +1,285 @@
 <?php
+    /**
+     * check for unused CSS in HTML, SCSS and JS
+     */
+    class unusedCSS
+    {
 
-    class unusedCSS {
+        public $unusedCSS;
+        public $selectors;
 
-        public static function flatten_array(array $array)
+        function __construct(stdClass $selectors = null, array $html = [], array $scss = [], array $js = [], string $project_dir = '', string $directory = '')
         {
-            $return = array();
-            array_walk_recursive($array, function($a) use (&$return) { $return[] = $a; });
-            return $return;
+            $unusedCSS = [];
+
+            if ($selectors === null)
+            {
+                $html_length = count($html);
+                $html_content = '';
+                while ($html_length--)
+                {
+                    $html_content .= file_get_contents( $directory . $html[$html_length] );
+                }
+                $scss_length = count($scss);
+                $scss_content = '';
+                while ($scss_length--)
+                {
+                    $scss_content .= file_get_contents( $directory . '/scss' . $scss[$scss_length] );
+                }
+                $js_length = count($js);
+                $js_content = '';
+                while ($js_length--)
+                {
+                    $js_content .= file_get_contents( $directory . '/js' . $js[$js_length] );
+                }
+
+                $selectors = $this->find_selectors($html_content, $scss_content, $js_content);
+            }
+
+            foreach ($html as $html_file)
+            {
+                foreach ( $scss as $scss_file )
+                {
+                    foreach ( $js as $js_file )
+                    {
+                        array_push(
+                            $unusedCSS,
+                            $this->find_unused_CSS($selectors, $html_file, $scss_file, $js_file, $project_dir, $directory)
+                        );
+                    }
+                }
+            }
+
+            $unusedCSS = $this->flatten_array($unusedCSS);
+            $unusedCSS = array_map('json_encode', $unusedCSS);
+            $unusedCSS = array_values(array_unique($unusedCSS));
+            $unusedCSS = array_map('json_decode', $unusedCSS);
+            $unusedCSS = json_decode(json_encode($unusedCSS), True);
+
+            $this->unusedCSS = $unusedCSS;
+            $this->selectors = $selectors;
         }
 
-        public static function find_all_IDs_CLASSes_TAGs($HTML_content = null , $SCSS_content = null, $JS_content = null)
+        /*
+         * find all unused CSS selectors
+         */
+        private function find_unused_CSS(stdClass $selectors, string $html = '', string $scss = '', string $js = '', string $project_dir = '', string $directory)
         {
-            $pattern_all_ids_classes_tags_SCSS = '/(?|(?:\{(?(?=\s+)\s+)[^\{\$]*?(?=\}))|(?=\{)\{[^\{\}]*?(?=\{(?(?=\s+)\s+)\$)\{[^\{]*?(?=\})\}(?(?=[^\{]*?(?=\#\{)\#\{[^\{]*?(?=\})\})(?:[^\{]*?(?=\#\{)\#\{[^\{]*?(?=\})\})+)[^\{]*?(?=\})|(?(?=\s+)\s+)(?:\@(?:-webkit-keyframes)).*?(?=\}(?(?=\s+)\s+)\})|(?(?=\s+)\s+)(?:\@(?:keyframes)).*?(?=\}(?(?=\s+)\s+)\}))(*SKIP)(*FAIL)|(?|(?(?=(?:\{(?(?=\s+)\s+)\{)|(?:\{(?(?=\s+)\s+)\})|(?:\}(?(?=\s+)\s+)\})|(?:\}(?(?=\s+)\s+)\{))\0|(?:\{|\})(?(?=\s+)\s+)(?(?=\@)\0|([^\%\;\@]*?(?(?=\#\{\$)\#\{\$.*?(?=\})))(?(?=\s+)\s+))(?(?=\}|\{\$)\0)(?=\{))|(?=\;)\;(?(?=\s+)\s+)([^\%\;\@\{\}]*?(?(?=\#\{\$)\#\{\$.*?(?=\})\}))(?(?=\s+)\s+)(?=\{)|(^[^\%\;\@]*?(?(?=\#\{\$)\#\{\$.*?(?=\})))(?=\{))/';
 
-            $pattern_all_ids_SCSS = '/(?(?=\#\w+)\#([\w\-]+)(?:(?=\,)|(?=\:)|(?=\s+)|(?=\.)|(?=\+)|(?=\~)|(?=\>)|(?=\[)|\#[\w\-]+|)|\0)/';
-            $pattern_all_classes_SCSS = '/(?(?=\.\w+)\.([\w\-]+)(?:(?=\,)|(?=\:)|(?=\s+)|(?=\#)|(?=\+)|(?=\~)|(?=\>)|(?=\[)|\.[\w\-]+|)|\0)/';
-            $pattern_all_tags_SCSS = '/(?(?=\#\w+)\#\w+|\0)(*SKIP)(*FAIL)|(?(?=\.\w+)\.\w+|\0)(*SKIP)(*FAIL)|(?(?=\-\w+)\-\w+|\0)(*SKIP)(*FAIL)|(?(?=\_\w+)\_\w+|\0)(*SKIP)(*FAIL)|(?(?=(?:\:lang\b|\:nth-child\b|\:nth-last-child\b|\:nth-last-of-type\b|\:nth-of-type\b)\((?(?=\s+)\s+).+?(?=\))\))(?:\:lang\b|\:nth-child\b|\:nth-last-child\b|\:nth-last-of-type\b|\:nth-of-type\b)\((?(?=\s+)\s+).+?(?=\))\)|\0)(*SKIP)(*FAIL)|(?(?=\:\w+)\:\w+|\0)(*SKIP)(*FAIL)|(?(?=\[(?(?=\s+)\s+)\w+)\[(?(?=\s+)\s+)\w+|\0)(*SKIP)(*FAIL)|(?(?=\=(?(?=\s+)\s+)\w+)\=(?(?=\s+)\s+)\w+|\0)(*SKIP)(*FAIL)|(?(?=\"(?(?=\s+)\s+)\w+)\"(?(?=\s+)\s+)\w+|\0)(*SKIP)(*FAIL)|(?(?=\'(?(?=\s+)\s+)\w+)\'(?(?=\s+)\s+)\w+|\0)(*SKIP)(*FAIL)|(\w+)/';
+            $unusedCSS = [];
+            $html = $directory . $html;
+            $scss = $directory . '/scss' . $scss;
+            $js = $directory . '/js' . $js;
 
-            $pattern_all_ids_HTML = '/id\b(?(?=\s+)\s+)\=(?(?=\s+)\s+)\"(?(?=\s+)\s+)([\w+\-]+)(?(?=\s+)\s+)(?=\")/';
-            $pattern_all_classes_HTML = '/class\b(?(?=\s+)\s+)\=(?(?=\s+)\s+)\"(?(?=\s+)\s+)(.*?)(?(?=\s+)\s+)(?=\")/';
-            $pattern_all_tags_HTML = '/<(?(?=\s+)\s+)(\w+)/';
+            $html_ids = $selectors->html->id;
+            $html_classes = $selectors->html->class;
+            $html_tags = $selectors->html->tag;
 
-            $pattern_get_id_JS = '/(?:getElementById\b)\(.*?[\"\'](?(?=\s+)\s+)([\w+\-]+)(?(?=\s+)\s+)[\"\']/';
-            $pattern_get_class_JS = '/(?:getElementsByClassName\b)\(.*?[\"\'](?(?=\s+)\s+)([\w+\-]+)(?(?=\s+)\s+)[\"\']/';
+            $scss_ids = $selectors->scss->id;
+            $scss_classes = $selectors->scss->class;
+            $scss_tags = $selectors->scss->tag;
 
-            $pattern_add_rem_hasClass_JQuery = '/(?:\.addClass\b|\.hasClass\b|\.removeClass\b)\((?(?=\s+)\s+)[\"\'](?(?=\s+)\s+)(.+?)(?=\"|\')[\"\']\)/';
-            $pattern_selector_all_JQuery = '/(?:\$)\((?(?=\s+)\s+)[\"\'](?(?=\s+)\s+)(?(?=[a-zA-Z0-9\*\s\-\:\>\[\]\~\+\*\,\|\=\$\^\'\"\_\d]+?)[a-zA-Z0-9\*\s\-\:\>\[\]\~\+\*\,\|\=\$\^\'\"\_\d]+?)(?=\#|\.)(?|([\#\.a-zA-Z0-9\*\s\-\:\>\[\]\~\+\*\,\|\=\$\^\"\'\_\d\(\)]+?))(?(?=\s+)\s+)[\"\'](?(?=\s+)\s+)\)/';
+            $js_ids = [];
+            foreach ($selectors->js->id as $value) {
+                $js_ids[] = $this->flatten_array( $value );
+            }
+            $js_ids = $this->flatten_array( $js_ids );
 
-            $pattern_filter_id_JQuery = '/\#[\w\-]+/';
-            $pattern_filter_class_JQuery = '/\.[\w\-]+/';
+            $js_classes = [];
+            foreach ($selectors->js->class as $value) {
+                $js_classes[] = $this->flatten_array( $value );
+            }
+            $js_classes = $this->flatten_array( $js_classes );
 
-            if ($SCSS_content !== null)
+            $html_content = file_get_contents( $html );
+            $scss_content = file_get_contents( $scss );
+            $js_content = file_get_contents( $js );
+            $curr_selectors = $this->find_selectors($html_content, $scss_content, $js_content);
+
+            $curr_html_ids = $curr_selectors->html->id;
+            $curr_html_classes = $curr_selectors->html->class;
+            $curr_html_tags = $curr_selectors->html->tag;
+
+            $curr_scss_ids = $curr_selectors->scss->id;
+            $curr_scss_classes = $curr_selectors->scss->class;
+            $curr_scss_tags = $curr_selectors->scss->tag;
+
+            $curr_js_ids = [];
+            foreach ($curr_selectors->js->id as $value) {
+                $curr_js_ids[] = $this->flatten_array( $value );
+            }
+            $curr_js_ids = $this->flatten_array( $curr_js_ids );
+
+            $curr_js_classes = [];
+            foreach ($curr_selectors->js->class as $value) {
+                $curr_js_classes[] = $this->flatten_array( $value );
+            }
+            $curr_js_classes = $this->flatten_array( $curr_js_classes );
+
+            $js_id_obj = (object) [
+                'get_id' => [
+                    '.getElementById("', '")',
+                    '\.getElementById\b\(', ''
+                ],
+                'id_jQuery' => [
+                    '$("#', '")',
+                    '\$\(', '\#'
+                ]
+            ];
+
+            $js_class_obj = (object) [
+                'get_class' => [
+                    '.getElementsByClassName("', '")',
+                    '\.getElementsByClassName\b\(', ''
+                ],
+                'class_jQuery' => [
+                    '$(".', '")',
+                    '\$\(', '\.'
+                ],
+                'arh_jQuery' => [
+                    '.addClass | .hasClass | .removeClass("', '")',
+                    '(?:\.addClass\b|\.hasClass\b|\.removeClass\b)', ''
+                ]
+            ];
+
+            if ( count($html_ids) > 0 )
             {
-                preg_match_all( $pattern_all_ids_classes_tags_SCSS, $SCSS_content, $SCSS_matches );
-                $SCSS_match_result = str_replace(',,', ',', preg_replace( '/\s+/', ',', join( ',', $SCSS_matches[1] )));
-
-                preg_match_all( $pattern_all_ids_SCSS, $SCSS_match_result, $SCSS_ids );
-                preg_match_all( $pattern_all_classes_SCSS, $SCSS_match_result, $SCSS_classes );
-                preg_match_all( $pattern_all_tags_SCSS, $SCSS_match_result, $SCSS_tags );
-
-                foreach( $SCSS_ids as $id_key => $id_value )
+                foreach ( $html_ids as $value )
                 {
-                    $SCSS_ids[$id_key] = str_replace( '#', '', $id_value );
+                    if ( !in_array( $value, $scss_ids ) &&
+                         !in_array( $value, $js_ids ) &&
+                          in_array( $value, $curr_html_ids ) )
+                    {
+                        array_push( $unusedCSS, (object) [
+                            'identifier' => 'id="' . $value . '"',
+                            'message' => 'HTML id not found in SCSS or JS file.',
+                            'line' => $this->find_row('id\b', $value, $html),
+                            'directory' => str_replace( $project_dir , '', $html )
+                        ]);
+                    }
                 }
-                $SCSS_ids = array_filter( array_unique( unusedCSS::flatten_array( $SCSS_ids ) ), function($value) { return $value !== ''; } );
-
-                foreach( $SCSS_classes as $class_key => $class_value )
-                {
-                    $SCSS_classes[$class_key] = str_replace( '.', '', $class_value );
-                }
-                $SCSS_classes = array_filter( array_unique( unusedCSS::flatten_array( $SCSS_classes ) ), function($value) { return $value !== ''; } );
-
-                $SCSS_tags = array_filter( array_unique( unusedCSS::flatten_array( $SCSS_tags ) ), function($value) { return $value !== ''; } );
             }
 
-            if ($HTML_content !== null)
+            if ( count($html_classes) > 0 )
             {
-                preg_match_all( $pattern_all_ids_HTML, $HTML_content, $HTML_ids );
-                preg_match_all( $pattern_all_classes_HTML, $HTML_content, $HTML_class_match );
-                /*workaround for whitespaces in HTML e.g. class="class    class class"*/
-                preg_match_all('/(?|(.+?)(?:\,)|(.+))/', preg_replace( '/\s+/', ',', join(',',array_filter($HTML_class_match[1], function($value) { return $value !== ''; } ))), $HTML_classes);
-                preg_match_all( $pattern_all_tags_HTML, $HTML_content, $HTML_tags );
-
-                $HTML_ids = array_filter( array_unique( unusedCSS::flatten_array( $HTML_ids[1] ) ), function($value) { return $value !== ''; } );
-
-                $HTML_classes = array_unique( $HTML_classes[1] );
-
-                $HTML_tags = array_filter( array_unique( unusedCSS::flatten_array( $HTML_tags[1] ) ), function($value) { return $value !== ''; } );
+                foreach ( $html_classes as $value )
+                {
+                    if ( !in_array( $value, $scss_classes ) &&
+                         !in_array( $value, $js_classes ) &&
+                          in_array( $value, $curr_html_classes ) )
+                    {
+                        array_push( $unusedCSS, (object) [
+                            'identifier' => 'class="' . $value . '"',
+                            'message' => 'HTML class not found in SCSS or JS file.',
+                            'line' => $this->find_row('class\b', $value, $html),
+                            'directory' => str_replace( $project_dir , '', $html )
+                        ]);
+                    }
+                }
             }
 
-            if ($JS_content !== null)
+            if ( count($scss_ids) > 0 )
             {
-                preg_match_all( $pattern_get_id_JS, $JS_content, $JS_get_ids );
-                $JS_get_ids = array_filter( array_unique( unusedCSS::flatten_array( $JS_get_ids[1] ) ), function($value) { return $value !== ''; } );
-
-                preg_match_all( $pattern_get_class_JS, $JS_content, $JS_get_classes );
-                $JS_get_classes = array_filter( array_unique( unusedCSS::flatten_array( $JS_get_classes[1] ) ), function($value) { return $value !== ''; } );
-
-                preg_match_all( $pattern_add_rem_hasClass_JQuery, $JS_content, $JS_add_rem_hasClass_match_JQuery );
-                preg_match_all( '/[\w\-]+/', join(',', $JS_add_rem_hasClass_match_JQuery[1]), $JS_add_rem_hasClass_JQuery);
-
-                $JS_add_rem_hasClass_JQuery = array_filter( array_unique( unusedCSS::flatten_array( $JS_add_rem_hasClass_JQuery[0] ) ), function($value) { return $value !== ''; } );
-
-                preg_match_all( $pattern_selector_all_JQuery, $JS_content, $JS_selector_all_JQuery );
-
-                preg_match_all( $pattern_filter_id_JQuery, join(',', $JS_selector_all_JQuery[1]), $JS_selector_id_jQuery );
-                foreach( $JS_selector_id_jQuery as $id_key => $id_value )
+                foreach ( $scss_ids as $value )
                 {
-                    $JS_selector_id_jQuery[$id_key] = str_replace( '#', '', $id_value );
+                    if ( !in_array( $value, $html_ids ) &&
+                         !in_array( $value, $js_ids ) &&
+                          in_array( $value, $curr_scss_ids ) )
+                    {
+                        array_push( $unusedCSS, (object) [
+                            'identifier' => '#' . $value,
+                            'message' => 'CSS id not found in HTML or JS file.',
+                            'line' => $this->find_row('\#', $value, $scss),
+                            'directory' => str_replace( $project_dir , '', $scss )
+                        ]);
+                    }
                 }
-                $JS_selector_id_jQuery = array_filter( array_unique( unusedCSS::flatten_array( $JS_selector_id_jQuery[0] ) ), function($value) { return $value !== ''; } );
-
-                preg_match_all( $pattern_filter_class_JQuery, join(',', $JS_selector_all_JQuery[1]), $JS_selector_class_jQuery );
-                foreach( $JS_selector_class_jQuery as $class_key => $class_value )
-                {
-                    $JS_selector_class_jQuery[$class_key] = str_replace( '.', '', $class_value );
-                }
-                $JS_selector_class_jQuery = array_filter( array_unique( unusedCSS::flatten_array( $JS_selector_class_jQuery[0] ) ), function($value) { return $value !== ''; } );
             }
 
-            if ($HTML_content !== null && $SCSS_content !== null && $JS_content !== null)
+            if ( count($scss_classes) > 0 )
             {
-                return [
-                    [
-                        $SCSS_ids,
-                        $SCSS_classes,
-                        $SCSS_tags
-                    ],
-                    [
-                        $HTML_ids,
-                        $HTML_classes,
-                        $HTML_tags
-                    ],
-                    [
-                        $JS_ids = [
-                            $JS_get_ids,
-                            $JS_selector_id_jQuery
-                        ],
-                        $JS_classes = [
-                            $JS_get_classes,
-                            $JS_add_rem_hasClass_JQuery,
-                            $JS_selector_class_jQuery
-                        ]
-                    ]
-                ];
+                foreach ( $scss_classes as $value )
+                {
+                    if ( !in_array( $value, $html_classes ) &&
+                         !in_array( $value, $js_classes )  &&
+                          in_array( $value, $curr_scss_classes ) )
+                    {
+                        array_push( $unusedCSS, (object) [
+                            'identifier' => '.' . $value,
+                            'message' => 'CSS class not found in HTML or JS file.',
+                            'line' => $this->find_row('\.', $value, $scss),
+                            'directory' => str_replace( $project_dir , '', $scss )
+                        ]);
+                    }
+                }
             }
-            else
-            {
-                if ($HTML_content !== null)
-                {
-                    return [
-                        $HTML_ids,
-                        $HTML_classes,
-                        $HTML_tags
-                    ];
-                }
-                if ($SCSS_content !== null)
-                {
-                    return [
-                        $SCSS_ids,
-                        $SCSS_classes,
-                        $SCSS_tags
-                    ];
-                }
-                if ($JS_content !== null)
-                {
-                    return [
-                        $JS_ids = [
-                            $JS_get_ids,
-                            $JS_selector_id_jQuery
-                        ],
-                        $JS_classes = [
-                            $JS_get_classes,
-                            $JS_add_rem_hasClass_JQuery,
-                            $JS_selector_class_jQuery
-                        ]
-                    ];
-                }
 
+            if ( count($scss_tags) > 0 )
+            {
+                foreach ( $scss_tags as $value )
+                {
+                    if ( !in_array( $value, $html_tags ) &&
+                          $value !== 'body' &&
+                          $value !== 'html'  &&
+                          in_array( $value, $curr_scss_tags ) )
+                    {
+                        array_push( $unusedCSS, (object) [
+                            'identifier' => $value,
+                            'message' => 'CSS tag not found in HTML file.',
+                            'line' => $this->find_row('\<', $value, $scss),
+                            'directory' => str_replace( $project_dir , '', $scss )
+                        ]);
+                    }
+                }
             }
+
+            if ( count($js_ids) > 0 )
+            {
+                foreach ( $selectors->js->id as $key => $par_value )
+                {
+                    foreach ($selectors->js->id->$key as $chi_value) {
+                        if ( !in_array( $chi_value, $scss_ids ) &&
+                             !in_array( $chi_value, $html_ids ) &&
+                              in_array( $chi_value, $curr_js_ids ))
+                        {
+                            array_push( $unusedCSS, (object) [
+                                'identifier' => $js_id_obj->$key[0] . $chi_value . $js_id_obj->$key[1],
+                                'message' => 'CSS id in JS file not found in HTML or SCSS file.',
+                                'line' => $this->find_row($js_id_obj->$key[2], $js_id_obj->$key[3] . $chi_value, $js),
+                                'directory' => str_replace( $project_dir , '', $js )
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            if ( count($js_classes) > 0 )
+            {
+                foreach ( $selectors->js->class as $key => $par_value )
+                {
+                    foreach ($selectors->js->class->$key as $chi_value) {
+                        if ( !in_array( $chi_value, $scss_classes ) &&
+                             !in_array( $chi_value, $html_classes ) &&
+                              in_array( $chi_value, $curr_js_classes ))
+                        {
+                            array_push( $unusedCSS, (object) [
+                                'identifier' => $js_class_obj->$key[0] . $chi_value . $js_class_obj->$key[1],
+                                'message' => 'CSS class in JS file not found in HTML or SCSS file.',
+                                'line' => $this->find_row($js_class_obj->$key[2], $js_class_obj->$key[3] . $chi_value, $js),
+                                'directory' => str_replace( $project_dir , '', $js )
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            return $unusedCSS;
         }
 
-        public static function find_unused_CSS($all_IDs_CLASSes_TAGs, $HTML_file, $SCSS_file, $JS_file, $project_directory)
-        {
-            $unused_CSS = [];
-
-            $SCSS_ids = $all_IDs_CLASSes_TAGs[0][0];
-            $SCSS_classes = $all_IDs_CLASSes_TAGs[0][1];
-            $SCSS_tags = $all_IDs_CLASSes_TAGs[0][2];
-
-            $HTML_ids = $all_IDs_CLASSes_TAGs[1][0];
-            $HTML_classes = $all_IDs_CLASSes_TAGs[1][1];
-            $HTML_tags = $all_IDs_CLASSes_TAGs[1][2];
-
-            $JS_ids = $all_IDs_CLASSes_TAGs[2][0];
-            $JS_classes = $all_IDs_CLASSes_TAGs[2][1];
-
-            $JS_ids_flatten_array = unusedCSS::flatten_array( $JS_ids );
-            $JS_class_flatten_array = unusedCSS::flatten_array( $JS_classes );
-
-            $HTML_content = file_get_contents( $HTML_file );
-            $current_HTML_IDs_CLASSes_TAGs = unusedCSS::find_all_IDs_CLASSes_TAGs($HTML_content, null, null);
-            $current_HTML_ids = $current_HTML_IDs_CLASSes_TAGs[0];
-            $current_HTML_classes = $current_HTML_IDs_CLASSes_TAGs[1];
-
-            $SCSS_content = file_get_contents( $SCSS_file );
-            $current_SCSS_IDs_CLASSes_TAGs = unusedCSS::find_all_IDs_CLASSes_TAGs(null, $SCSS_content, null);
-            $current_SCSS_ids = $current_SCSS_IDs_CLASSes_TAGs[0];
-            $current_SCSS_classes = $current_SCSS_IDs_CLASSes_TAGs[1];
-            $current_SCSS_tags = $current_SCSS_IDs_CLASSes_TAGs[2];
-
-            $JS_content = file_get_contents( $JS_file );
-            $current_JS_IDs_CLASSes_TAGs = unusedCSS::find_all_IDs_CLASSes_TAGs(null, null, $JS_content);
-            $current_JS_ids = $current_JS_IDs_CLASSes_TAGs[0];
-            $current_JS_classes = $current_JS_IDs_CLASSes_TAGs[1];
-
-            $current_JS_ids_flatten_array = unusedCSS::flatten_array( $current_JS_ids );
-            $current_JS_class_flatten_array = unusedCSS::flatten_array( $current_JS_classes );
-
-            if ( count($SCSS_ids) > 0 )
-            {
-                foreach ( $SCSS_ids as $SCSS_id_search_value )
-                {
-                    if ( !in_array( $SCSS_id_search_value, $HTML_ids ) &&
-                         !in_array( $SCSS_id_search_value, $JS_ids_flatten_array ) &&
-                          in_array( $SCSS_id_search_value, $current_SCSS_ids ) )
-                    {
-                        array_push( $unused_CSS, $unused = (object) [
-                            "identifier" => '#' . $SCSS_id_search_value,
-                            "message" => 'CSS id not found in HTML or JS file.',
-                            "line" => unusedCSS::find_row('\#', $SCSS_id_search_value, $SCSS_file),
-                            "directory" => str_replace ( $project_directory , '', $SCSS_file )
-                        ]);
-                    }
-                }
-            }
-
-            if ( count($SCSS_classes) > 0 )
-            {
-                foreach ( $SCSS_classes as $SCSS_class_search_value )
-                {
-                    if ( !in_array( $SCSS_class_search_value, $HTML_classes ) &&
-                         !in_array( $SCSS_class_search_value, $JS_class_flatten_array )  &&
-                          in_array( $SCSS_class_search_value, $current_SCSS_classes ) )
-                    {
-                        array_push( $unused_CSS, $unused = (object) [
-                            "identifier" => '.' . $SCSS_class_search_value,
-                            "message" => "CSS class not found in HTML or JS file.",
-                            "line" => unusedCSS::find_row('\.', $SCSS_class_search_value, $SCSS_file),
-                            "directory" => str_replace ( $project_directory , '', $SCSS_file )
-                        ]);
-                    }
-                }
-            }
-
-            if ( count($SCSS_tags) > 0 )
-            {
-                foreach ( $SCSS_tags as $SCSS_tag_search_value )
-                {
-                    if ( !in_array( $SCSS_tag_search_value, $HTML_tags ) &&
-                          $SCSS_tag_search_value !== 'body' &&
-                          $SCSS_tag_search_value !== 'html'  &&
-                          in_array( $SCSS_tag_search_value, $current_SCSS_tags ))
-                    {
-                        array_push( $unused_CSS, $unused = (object) [
-                            "identifier" => $SCSS_tag_search_value,
-                            "message" => "CSS tag not found in HTML file.",
-                            "line" => unusedCSS::find_row('\<', $SCSS_tag_search_value, $SCSS_file),
-                            "directory" => str_replace ( $project_directory , '', $SCSS_file )
-                        ]);
-                    }
-                }
-            }
-
-            if ( count($HTML_ids) > 0 )
-            {
-                foreach ( $HTML_ids as $HTML_id_search_value )
-                {
-                    if ( !in_array( $HTML_id_search_value, $SCSS_ids ) &&
-                         !in_array( $HTML_id_search_value, $JS_ids_flatten_array ) &&
-                          in_array( $HTML_id_search_value, $current_HTML_ids ) )
-                    {
-                        array_push( $unused_CSS, $unused = (object) [
-                            "identifier" => 'id="' . $HTML_id_search_value . '"',
-                            "message" => "HTML id not found in SCSS or JS file.",
-                            "line" => unusedCSS::find_row('id\b', $HTML_id_search_value, $HTML_file),
-                            "directory" => str_replace ( $project_directory , '', $HTML_file )
-                        ]);
-                    }
-                }
-            }
-
-            if ( count($HTML_classes) > 0 )
-            {
-                foreach ( $HTML_classes as $HTML_class_search_value )
-                {
-                    if ( !in_array( $HTML_class_search_value, $SCSS_classes ) &&
-                         !in_array( $HTML_class_search_value, $JS_class_flatten_array ) &&
-                          in_array( $HTML_class_search_value, $current_HTML_classes ) )
-                    {
-                        array_push( $unused_CSS, $unused = (object) [
-                            "identifier" => 'class="' . $HTML_class_search_value . '"',
-                            "message" => "HTML class not found in SCSS or JS file.",
-                            "line" => unusedCSS::find_row('class\b', $HTML_class_search_value, $HTML_file),
-                            "directory" => str_replace ( $project_directory , '', $HTML_file )
-                        ]);
-                    }
-                }
-            }
-
-            if ( count($JS_ids) > 0 )
-            {
-                if ( count($JS_ids[0]) > 0 )
-                {
-                    foreach ( $JS_ids[0] as $JS_get_id_search_value )
-                    {
-                        if ( !in_array( $JS_get_id_search_value, $SCSS_ids ) &&
-                             !in_array( $JS_get_id_search_value, $HTML_ids )  &&
-                              in_array( $JS_get_id_search_value, $current_JS_ids_flatten_array ))
-                        {
-                            array_push( $unused_CSS, $unused = (object) [
-                                "identifier" => '.getElementById("' . $JS_get_id_search_value . '")',
-                                "message" => "CSS id in JS file not found in HTML or SCSS file.",
-                                "line" => unusedCSS::find_row('\.getElementById\b\(', $JS_get_id_search_value, $JS_file),
-                                "directory" => str_replace ( $project_directory , '', $JS_file )
-                            ]);
-                        }
-                    }
-                }
-                if ( count($JS_ids[1]) > 0 )
-                {
-                    foreach ( $JS_ids[1] as $JS_selector_id_jQuery_search_value )
-                    {
-                        if ( !in_array( $JS_selector_id_jQuery_search_value, $SCSS_ids ) &&
-                             !in_array( $JS_selector_id_jQuery_search_value, $HTML_ids ) &&
-                              in_array( $JS_selector_id_jQuery_search_value, $current_JS_ids_flatten_array ))
-                        {
-                            array_push( $unused_CSS, $unused = (object) [
-                                "identifier" => '$("#' . $JS_selector_id_jQuery_search_value . '")',
-                                "message" => "CSS id in JS file not found in HTML or SCSS file.",
-                                "line" => unusedCSS::find_row('\$\(', '\#' . $JS_selector_id_jQuery_search_value, $JS_file),
-                                "directory" => str_replace ( $project_directory , '', $JS_file )
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            if ( count($JS_classes) > 0 )
-            {
-                if ( count($JS_classes[0]) > 0 )
-                {
-                    foreach ( $JS_classes[0] as $JS_get_class_search_value )
-                    {
-                        if ( !in_array( $JS_get_class_search_value, $SCSS_classes ) &&
-                             !in_array( $JS_get_class_search_value, $HTML_classes ) &&
-                              in_array( $JS_get_class_search_value, $current_JS_class_flatten_array ))
-                        {
-                            array_push( $unused_CSS, $unused = (object) [
-                                "identifier" => '.getElementsByClassName("' . $JS_get_class_search_value . '")',
-                                "message" => "CSS class in JS file not found in HTML or SCSS file.",
-                                "line" => unusedCSS::find_row('\.getElementsByClassName\b\(', $JS_get_class_search_value, $JS_file),
-                                "directory" => str_replace ( $project_directory , '', $JS_file )
-                            ]);
-                        }
-                    }
-                }
-                if ( count($JS_classes[1]) > 0 )
-                {
-                    foreach ( $JS_classes[1] as $JS_add_rem_hasClass_JQuery_search_value )
-                    {
-                        if ( !in_array( $JS_add_rem_hasClass_JQuery_search_value, $SCSS_classes ) &&
-                             !in_array( $JS_add_rem_hasClass_JQuery_search_value, $HTML_classes ) &&
-                              in_array( $JS_add_rem_hasClass_JQuery_search_value, $current_JS_class_flatten_array ))
-                        {
-                            array_push( $unused_CSS, $unused = (object) [
-                                "identifier" => '.addClass | .hasClass | .removeClass("' . $JS_add_rem_hasClass_JQuery_search_value . '")',
-                                "message" => "CSS class in JS file not found in HTML or SCSS file.",
-                                "line" => unusedCSS::find_row('(?:\.addClass\b|\.hasClass\b|\.removeClass\b)', $JS_add_rem_hasClass_JQuery_search_value, $JS_file),
-                                "directory" => str_replace ( $project_directory , '', $JS_file )
-                            ]);
-                        }
-                    }
-                }
-                if ( count($JS_classes[2]) > 0 )
-                {
-                    foreach ( $JS_classes[2] as $JS_selector_class_jQuery_search_value )
-                    {
-                        if ( !in_array( $JS_selector_class_jQuery_search_value, $SCSS_classes ) &&
-                             !in_array( $JS_selector_class_jQuery_search_value, $HTML_classes ) &&
-                              in_array( $JS_selector_class_jQuery_search_value, $current_JS_class_flatten_array ))
-                        {
-                            array_push( $unused_CSS, $unused = (object) [
-                                "identifier" => '$(".' . $JS_selector_class_jQuery_search_value . '")',
-                                "message" => "CSS class in JS file not found in HTML or SCSS file.",
-                                "line" => unusedCSS::find_row('(?:\.addClass\b|\.hasClass\b|\.removeClass\b)', $JS_selector_class_jQuery_search_value, $JS_file),
-                                "directory" => str_replace ( $project_directory , '', $JS_file )
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            return $unused_CSS;
-        }
-
-        public static function find_row( $identifier, $search, $inputFile )
+        /*
+         * find row number of match
+         */
+        private function find_row(string $identifier, string $search, string $inputFile )
         {
             $line_number = false;
             $lines = [];
@@ -422,6 +316,136 @@
                 return $lines;
             }
 
+        }
+
+        /*
+         * find all selectors
+         */
+         private function find_selectors(string $html = '', string $scss = '', string $js = '')
+         {
+             $pattern_id_html = '/' . REGEX_ID_HTML . '/';
+             $pattern_class_html = '/' . REGEX_CLASS_HTML . '/';
+             $pattern_tag_html = '/' . REGEX_TAG_HTML . '/';
+
+             $pattern_all_scss = '/' . REGEX_ALL_SCSS . '/';
+             $pattern_id_scss = '/' . REGEX_ID_SCSS . '/';
+             $pattern_class_scss = '/' . REGEX_CLASS_SCSS . '/';
+             $pattern_tag_scss = '/' . REGEX_TAG_SCSS . '/';
+
+             $pattern_get_id_js = '/' . REGEX_GET_ID_JS . '/';
+             $pattern_get_class_js = '/' . REGEX_GET_CLASS_JS . '/';
+
+             $pattern_add_rem_hasClass_jQuery = '/' . REGEX_ADD_REM_HASCLASS_JQUERY . '/';
+             $pattern_selectors_jQuery = '/' . REGEX_SELECTORS_JQUERY . '/';
+             $pattern_id_selectors_jQuery = '/' . REGEX_ID_SELECTORS_JQUERY . '/';
+             $pattern_class_selectors_jQuery = '/' . REGEX_CLASS_SELECTORS_JQUERY . '/';
+
+
+             /* filter html match result */
+             preg_match_all( $pattern_id_html, $html, $html_ids );
+
+             preg_match_all( $pattern_class_html, $html, $html_class_match );
+             /* WORKAROUND: for multiple whitespaces in html e.g. class="class    class class" */
+             preg_match_all('/(?|(.+?)(?:\,)|(.+))/', preg_replace( '/' . REGEX_SPACES . '/', ',', join(',',array_filter($html_class_match[1], function($value) { return $value !== ''; } ))), $html_classes);
+
+             preg_match_all( $pattern_tag_html, $html, $html_tags );
+
+             $html_ids = $this->filter_unique_flatten_array($html_ids[1]);
+             $html_classes = array_unique( $html_classes[1] );
+             $html_tags = $this->filter_unique_flatten_array($html_tags[1]);
+
+
+             /* filter scss match result */
+             preg_match_all( $pattern_all_scss, $scss, $scss_matches );
+             $scss_result = str_replace(',,', ',', preg_replace( '/' . REGEX_SPACES . '/', ',', join( ',', $scss_matches[1] )));
+
+             preg_match_all( $pattern_id_scss, $scss_result, $scss_ids );
+             foreach( $scss_ids as $key => $id )
+             {
+                 $scss_ids[$key] = str_replace( '#', '', $id );
+             }
+             $scss_ids = $this->filter_unique_flatten_array($scss_ids);
+
+             preg_match_all( $pattern_class_scss, $scss_result, $scss_classes );
+             foreach( $scss_classes as $key => $class )
+             {
+                 $scss_classes[$key] = str_replace( '.', '', $class );
+             }
+             $scss_classes = $this->filter_unique_flatten_array($scss_classes);
+
+             preg_match_all( $pattern_tag_scss, $scss_result, $scss_tags );
+             $scss_tags = $this->filter_unique_flatten_array($scss_tags);
+
+
+             /* filter js match result */
+             preg_match_all( $pattern_get_id_js, $js, $js_get_ids );
+             $js_get_ids = $this->filter_unique_flatten_array($js_get_ids[1]);
+
+             preg_match_all( $pattern_get_class_js, $js, $js_get_classes );
+             $js_get_classes = $this->filter_unique_flatten_array($js_get_classes[1]);
+
+             preg_match_all( $pattern_add_rem_hasClass_jQuery, $js, $js_add_rem_hasClass_match_jQuery );
+             preg_match_all( '/[\w\-]+/', join(',', $js_add_rem_hasClass_match_jQuery[1]), $js_add_rem_hasClass_jQuery);
+             $js_add_rem_hasClass_jQuery = $this->filter_unique_flatten_array($js_add_rem_hasClass_jQuery[0]);
+
+             preg_match_all( $pattern_selectors_jQuery, $js, $js_selectors_jQuery );
+
+             preg_match_all( $pattern_id_selectors_jQuery, join(',', $js_selectors_jQuery[1]), $js_id_selectors_jQuery );
+             foreach( $js_id_selectors_jQuery as $key => $id )
+             {
+                 $js_id_selectors_jQuery[$key] = str_replace( '#', '', $id );
+             }
+             $js_id_selectors_jQuery = $this->filter_unique_flatten_array($js_id_selectors_jQuery[0]);
+
+             preg_match_all( $pattern_class_selectors_jQuery, join(',', $js_selectors_jQuery[1]), $js_class_selectors_jQuery );
+             foreach( $js_class_selectors_jQuery as $key => $class )
+             {
+                 $js_class_selectors_jQuery[$key] = str_replace( '#', '', $class );
+             }
+             $js_class_selectors_jQuery = $this->filter_unique_flatten_array($js_class_selectors_jQuery[0]);
+
+             return (object) [
+                 'html' => (object) [
+                     'id' => $html_ids,
+                     'class' => $html_classes,
+                     'tag' => $html_tags
+                 ],
+                 'scss' => (object) [
+                     'id' => $scss_ids,
+                     'class' => $scss_classes,
+                     'tag' => $scss_tags
+                 ],
+                 'js' => (object) [
+                     'id' => (object) [
+                         'get_id' => $js_get_ids,
+                         'id_jQuery' => $js_id_selectors_jQuery
+                     ],
+                     'class' => (object) [
+                         'get_class' => $js_get_classes,
+                         'class_jQuery' => $js_class_selectors_jQuery,
+                         'arh_jQuery' => $js_add_rem_hasClass_jQuery
+                     ]
+                 ]
+             ];
+
+         }
+
+        /*
+         * flatten array
+         */
+        private function flatten_array(array $array)
+        {
+            $return = [];
+            array_walk_recursive($array, function($a) use (&$return) { $return[] = $a; });
+            return $return;
+        }
+
+        /*
+         * filter, unique and flatten array
+         */
+        private function filter_unique_flatten_array(array $array)
+        {
+            return array_filter( array_unique( $this->flatten_array( $array ) ), function($value) { return $value !== ''; } );
         }
     }
 
