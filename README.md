@@ -10,7 +10,7 @@ Matched only `getElementById`, `$(#id)`, `getElementsByClassName`, `addClass`, `
 ## Usage
 
     require 'regex.php';
-    require 'namespaceCSS.php';
+    require 'unusedCSS.php';
 
     // if $selectors is null the function search for selectors with the given directory and file paths
     $unusedCSS = new unusedCSS(
