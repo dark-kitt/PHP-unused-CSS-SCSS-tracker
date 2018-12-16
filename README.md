@@ -15,9 +15,9 @@ Matched only `getElementById`, `$(#id)`, `getElementsByClassName`, `addClass`, `
     // if $selectors is null the function search for selectors with the given directory and file paths
     $unusedCSS = new unusedCSS(
         $selectors,
-        $html_dirs,
-        $scss_dirs,
-        $js_dirs,
-        $project_dir,
-        $directory
+        [$html_dirs],
+        [$scss_dirs],
+        [$js_dirs],
+        $root_dir,
+        $sub_dir
     );

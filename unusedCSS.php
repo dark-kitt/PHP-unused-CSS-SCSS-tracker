@@ -8,7 +8,7 @@
         public $unusedCSS;
         public $selectors;
 
-        function __construct(stdClass $selectors = null, array $html = [], array $scss = [], array $js = [], string $project_dir = '', string $directory = '')
+        function __construct(stdClass $selectors = null, array $html = [], array $scss = [], array $js = [], string $root_dir = '', string $sub_dir = '')
         {
             $unusedCSS = [];
 
@@ -18,19 +18,19 @@
                 $html_content = '';
                 while ($html_length--)
                 {
-                    $html_content .= file_get_contents( $directory . $html[$html_length] );
+                    $html_content .= file_get_contents( $sub_dir . $html[$html_length] );
                 }
                 $scss_length = count($scss);
                 $scss_content = '';
                 while ($scss_length--)
                 {
-                    $scss_content .= file_get_contents( $directory . '/scss' . $scss[$scss_length] );
+                    $scss_content .= file_get_contents( $sub_dir . '/scss' . $scss[$scss_length] );
                 }
                 $js_length = count($js);
                 $js_content = '';
                 while ($js_length--)
                 {
-                    $js_content .= file_get_contents( $directory . '/js' . $js[$js_length] );
+                    $js_content .= file_get_contents( $sub_dir . '/js' . $js[$js_length] );
                 }
 
                 $selectors = $this->find_selectors($html_content, $scss_content, $js_content);
@@ -44,7 +44,7 @@
                     {
                         array_push(
                             $unusedCSS,
-                            $this->find_unused_CSS($selectors, $html_file, $scss_file, $js_file, $project_dir, $directory)
+                            $this->find_unused_CSS($selectors, $html_file, $scss_file, $js_file, $root_dir, $sub_dir)
                         );
                     }
                 }
@@ -63,13 +63,13 @@
         /*
          * find all unused CSS selectors
          */
-        private function find_unused_CSS(stdClass $selectors, string $html = '', string $scss = '', string $js = '', string $project_dir = '', string $directory)
+        private function find_unused_CSS(stdClass $selectors, string $html = '', string $scss = '', string $js = '', string $root_dir = '', string $sub_dir)
         {
 
             $unusedCSS = [];
-            $html = $directory . $html;
-            $scss = $directory . '/scss' . $scss;
-            $js = $directory . '/js' . $js;
+            $html = $sub_dir . $html;
+            $scss = $sub_dir . '/scss' . $scss;
+            $js = $sub_dir . '/js' . $js;
 
             $html_ids = $selectors->html->id;
             $html_classes = $selectors->html->class;
@@ -154,7 +154,7 @@
                             'identifier' => 'id="' . $value . '"',
                             'message' => 'HTML id not found in SCSS or JS file.',
                             'line' => $this->find_row('id\b', $value, $html),
-                            'directory' => str_replace( $project_dir , '', $html )
+                            'directory' => str_replace( $root_dir , '', $html )
                         ]);
                     }
                 }
@@ -172,7 +172,7 @@
                             'identifier' => 'class="' . $value . '"',
                             'message' => 'HTML class not found in SCSS or JS file.',
                             'line' => $this->find_row('class\b', $value, $html),
-                            'directory' => str_replace( $project_dir , '', $html )
+                            'directory' => str_replace( $root_dir , '', $html )
                         ]);
                     }
                 }
@@ -190,7 +190,7 @@
                             'identifier' => '#' . $value,
                             'message' => 'CSS id not found in HTML or JS file.',
                             'line' => $this->find_row('\#', $value, $scss),
-                            'directory' => str_replace( $project_dir , '', $scss )
+                            'directory' => str_replace( $root_dir , '', $scss )
                         ]);
                     }
                 }
@@ -208,7 +208,7 @@
                             'identifier' => '.' . $value,
                             'message' => 'CSS class not found in HTML or JS file.',
                             'line' => $this->find_row('\.', $value, $scss),
-                            'directory' => str_replace( $project_dir , '', $scss )
+                            'directory' => str_replace( $root_dir , '', $scss )
                         ]);
                     }
                 }
@@ -227,7 +227,7 @@
                             'identifier' => $value,
                             'message' => 'CSS tag not found in HTML file.',
                             'line' => $this->find_row('\<', $value, $scss),
-                            'directory' => str_replace( $project_dir , '', $scss )
+                            'directory' => str_replace( $root_dir , '', $scss )
                         ]);
                     }
                 }
@@ -246,7 +246,7 @@
                                 'identifier' => $js_id_obj->$key[0] . $chi_value . $js_id_obj->$key[1],
                                 'message' => 'CSS id in JS file not found in HTML or SCSS file.',
                                 'line' => $this->find_row($js_id_obj->$key[2], $js_id_obj->$key[3] . $chi_value, $js),
-                                'directory' => str_replace( $project_dir , '', $js )
+                                'directory' => str_replace( $root_dir , '', $js )
                             ]);
                         }
                     }
@@ -266,7 +266,7 @@
                                 'identifier' => $js_class_obj->$key[0] . $chi_value . $js_class_obj->$key[1],
                                 'message' => 'CSS class in JS file not found in HTML or SCSS file.',
                                 'line' => $this->find_row($js_class_obj->$key[2], $js_class_obj->$key[3] . $chi_value, $js),
-                                'directory' => str_replace( $project_dir , '', $js )
+                                'directory' => str_replace( $root_dir , '', $js )
                             ]);
                         }
                     }
